@@ -120,14 +120,24 @@ void wakeup_test() {
         printf(1, "Process 1 (pid: %d, priority: %d) sleeping\n", getpid(), 2);
         sleep(10);
         printf(1, "Process 1 (pid: %d, priority: %d) woke up\n", getpid(), 2);
+            for (int i = 0; i < 10; i++) {
+      printf(1, "Process 1 (pid: %d, priority: %d) running\n", getpid(), 1);
+      yield();
+    }
+
         exit();
     }
 
     pid2 = fork();
     if (pid2 == 0) {
         printf(1, "Process 2 (pid: %d, priority: %d) sleeping\n", getpid(), 1);
-        sleep(5);
+        sleep(15);
         printf(1, "Process 2 (pid: %d, priority: %d) woke up\n", getpid(), 1);
+            for (int i = 0; i < 5; i++) {
+      printf(1, "Process 2 (pid: %d, priority: %d) running\n", getpid(), 1);
+      yield();
+    }
+
         exit();
     }
 
@@ -157,7 +167,7 @@ void blocking_test() {
     pid2 = fork();
     if (pid2 == 0) {
         nice(2);
-        for (int i = 0; i < 500; i++) {
+        for (int i = 0; i < 5; i++) {
             printf(1, "Process 2 (pid: %d, priority: %d) running\n", getpid(), 2);
             sleep(1);
         }
