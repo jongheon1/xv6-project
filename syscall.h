@@ -24,3 +24,4 @@
 #define SYS_swapwrite	23
 #define SYS_nice 24
 #define SYS_yield 25
+#define SYS_ps 26

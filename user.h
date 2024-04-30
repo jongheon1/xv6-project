@@ -27,6 +27,7 @@ int swapread(const char*, int);
 int swapwrite(const char*, int);
 int yield(void);
 int nice(int);
+int ps(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

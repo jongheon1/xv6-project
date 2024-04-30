@@ -107,6 +107,7 @@ extern int sys_swapread(void);
 extern int sys_swapwrite(void);
 extern int sys_nice(void);
 extern int sys_yield(void);
+extern int sys_ps(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -134,6 +135,7 @@ static int (*syscalls[])(void) = {
 [SYS_swapwrite] sys_swapwrite,
 [SYS_nice] sys_nice,
 [SYS_yield] sys_yield,
+[SYS_ps] sys_ps,
 };
 
 void

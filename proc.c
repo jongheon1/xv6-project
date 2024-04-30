@@ -335,13 +335,21 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    struct proc* highest = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
+      if(highest == 0 || p->nice < highest->nice || (p->nice == highest->nice && p->pid < highest->pid)) {
+        highest = p;
+      }
+    }
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+    if (highest) {
+      p = highest;
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -454,6 +462,21 @@ sleep(void *chan, struct spinlock *lk)
   }
 }
 
+int ps(void)
+{
+ struct proc *p;
+ extern uint ticks;
+ cprintf("name \t pid \t state \t nice \t ticks \t ticks: %d \n", ticks);
+ acquire(&ptable.lock);
+ for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+ if(p->state == UNUSED) continue;
+ cprintf("%s \t %d \t %d \t %d\n", p->name, p->pid, p->state, p->nice);
+  }
+  release(&ptable.lock);
+  return 0;
+}
+
+
 //PAGEBREAK!
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
@@ -510,6 +533,10 @@ int nice(int value)
 	else if (new_nice < -5 )
 		new_nice = -5;
 	p->nice = new_nice;
+
+  p->state = RUNNABLE;
+
+  sched();
 	release(&ptable.lock);
 
 	return p->nice;
