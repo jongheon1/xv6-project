@@ -12,6 +12,86 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+struct queue {
+  struct proc* head;
+  struct proc* tail;
+};
+
+struct {
+  struct queue queue[3];
+} mlfq;
+
+void initMlfq(void) {
+  for (int i = 0; i < 3; i++) {
+    mlfq.queue[i].head = 0;
+    mlfq.queue[i].tail = 0;
+  }
+}
+
+int printQueue(void) {
+  cprintf("====printQueue====\n");
+  for (int i = 0; i < 3; i++) {
+    struct proc* p = mlfq.queue[i].head;
+    cprintf("Queue %d: \n", i);
+    while (p != 0) {
+  cprintf("%s \t %d \t %d \t %d \t %d \n", p->name, p->pid, p->state, p->level, p->time_slice);
+      p = p->next;
+    }
+  }
+  cprintf("======endQueue=======\n");
+  return 0;
+}
+
+
+int ps(void)
+{
+ struct proc *p;
+ extern uint ticks;
+ cprintf("name \t pid \t state \t level \t time \t ticks: %d \n", ticks);
+ acquire(&ptable.lock);
+ for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+  if(p->state == UNUSED || p->state == EMBRYO) continue;
+  cprintf("%s \t %d \t %d \t %d \t %d \n", p->name, p->pid, p->state, p->level, p->time_slice);
+ }
+ cprintf("=====================ps end=====================\n");
+ release(&ptable.lock);
+ return 0;
+}
+
+void push(struct proc* p, int level, int front) {
+  if (front) {
+    p->next = mlfq.queue[level].head;
+    mlfq.queue[level].head = p;
+    if (mlfq.queue[level].tail == 0) {
+      mlfq.queue[level].tail = p;
+    }
+  } else {
+    if (mlfq.queue[level].tail != 0) {
+      mlfq.queue[level].tail->next = p;
+    } else {
+      mlfq.queue[level].head = p;
+    }
+    mlfq.queue[level].tail = p;
+    p->next = 0;
+  }
+}
+
+void push_old(struct proc* p) {
+  if (p->time_slice > 0) push(p, p->level, 1);
+  else {
+    p->time_slice = 4;
+    p->level++;
+    if (p->level > 2) p->level = 2;
+    push(p, p->level, 0);
+  }
+}
+
+void pop(struct proc* p, int level) {
+  mlfq.queue[level].head = p->next;
+  if (mlfq.queue[level].tail == p) mlfq.queue[level].tail = 0;
+}
+
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -88,6 +168,9 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->level = 0;
+  p->time_slice = 4;
+  p->next = 0;
 
   release(&ptable.lock);
 
@@ -151,6 +234,8 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  initMlfq();
+  push(p, p->level, 1);
 
   release(&ptable.lock);
 }
@@ -218,6 +303,12 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  curproc->state = RUNNABLE;
+  push(np, 0, 0);
+  // printQueue();
+  // pop(curproc, curproc->level);
+  push_old(curproc);
+  sched();
 
   release(&ptable.lock);
 
@@ -335,23 +426,22 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+    for (int level = 0; level < 3; level++) {
+        if (mlfq.queue[level].head == 0) continue;
+        p = mlfq.queue[level].head;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        pop(p, p->level);
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
     }
     release(&ptable.lock);
 
@@ -389,7 +479,9 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  myproc()->state = RUNNABLE;
+  struct proc* p = myproc();
+  p->state = RUNNABLE;
+  push_old(p);
   sched();
   release(&ptable.lock);
 }
@@ -441,7 +533,6 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-
   sched();
 
   // Tidy up.
@@ -463,8 +554,11 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      push_old(p);
+    }
+      
 }
 
 // Wake up all processes sleeping on chan.
@@ -489,8 +583,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING) {
         p->state = RUNNABLE;
+        push(p, 0, 1);
+      }
       release(&ptable.lock);
       return 0;
     }

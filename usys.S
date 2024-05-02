@@ -33,3 +33,5 @@ SYSCALL(swapread)
 SYSCALL(swapwrite)
 SYSCALL(yield)
 SYSCALL(nice)
+SYSCALL(ps)
+SYSCALL(printQueue);
