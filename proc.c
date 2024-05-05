@@ -77,13 +77,12 @@ void push(struct proc* p, int level, int front) {
 }
 
 void push_old(struct proc* p) {
-  if (p->time_slice > 0) push(p, p->level, 1);
-  else {
-    p->time_slice = 4;
+  if (p->time_slice == 0) {
     p->level++;
     if (p->level > 2) p->level = 2;
-    push(p, p->level, 0);
   }
+  p->time_slice = 4;
+  push(p, p->level, 0);
 }
 
 void pop(struct proc* p, int level) {
@@ -305,8 +304,6 @@ fork(void)
   np->state = RUNNABLE;
   curproc->state = RUNNABLE;
   push(np, 0, 0);
-  // printQueue();
-  // pop(curproc, curproc->level);
   push_old(curproc);
   sched();
 
@@ -442,6 +439,7 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        break;
     }
     release(&ptable.lock);
 
@@ -558,7 +556,6 @@ wakeup1(void *chan)
       p->state = RUNNABLE;
       push_old(p);
     }
-      
 }
 
 // Wake up all processes sleeping on chan.

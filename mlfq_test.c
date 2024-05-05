@@ -16,12 +16,10 @@ void mlfq_test()
     sum += i;
     if (i == 80000000) {
       short_start = uptime();
-            printf(1, "Short process start 1\n");
 
       pid1 = fork();
 
       if (pid1 == 0) {
-            printf(1, "Short process start 2\n");
 
         // Short-running process
         volatile unsigned int short_sum = 1;
@@ -36,12 +34,10 @@ void mlfq_test()
 
     } else if (i == 160000000) {
       inter_start = uptime();
-                    printf(1, "Interactive process start 1\n");
 
       pid2 = fork();
       if (pid2 == 0) {
 
-              printf(1, "Interactive process start 2\n");
 
         // Interactive process
         for (int k=1; k<5; k++) {
@@ -56,8 +52,6 @@ void mlfq_test()
   }
 
   long_end = uptime();
-            //   ps();
-            // printQueue();
 
   printf(1, "Long process turnaround time: %d\n", long_end - long_start);
   wait();
@@ -115,24 +109,67 @@ void wakeup_test()
 
 void time_slice_test()
 {
-    int pid;
 
-    pid = fork();
-    if (pid == 0) {
-        printf(1, "Child process (pid: %d) is running\n", getpid());
-        printQueue();
+    if (fork() == 0) {
         for (int i = 0; i < 20; i++) {
             printf(1, "Child process (pid: %d) is running (iteration: %d)\n", getpid(), i);
+            ps();
+            printQueue();
         }
         exit();
-    } else {
-        printf(1, "Parent process (pid: %d) is running\n", getpid());
-        printQueue();
-        for (int i = 0; i < 10; i++) {
-            printf(1, "Parent process (pid: %d) is running (iteration: %d)\n", getpid(), i);
-        }
-        wait();
     }
+    if (fork() == 0) {
+        for (int i = 0; i < 20; i++) {
+            printf(1, "Child process (pid: %d) is running (iteration: %d)\n", getpid(), i);
+            ps();
+            printQueue();
+        }
+        exit();
+    }
+
+    if (fork() == 0) {
+        for (int i = 0; i < 20; i++) {
+            printf(1, "Child process (pid: %d) is running (iteration: %d)\n", getpid(), i);
+            ps();
+            printQueue();
+        }
+        exit();
+    }
+    wait();
+    wait();
+    wait();
+    volatile unsigned int k = 1;
+    for (int j = 0; j < 100; j++) {
+        k *= j*13122;
+    }
+    
+    printf(1, "parent process (pid: %d) is running (iteration: %d)\n", getpid());
+    ps();
+    printQueue();
+    exit();
+
+    // int pid;
+
+    // pid = fork();
+    // if (pid == 0) {
+    //     printf(1, "Child process (pid: %d) is running\n", getpid());
+    //     printQueue();
+    //     for (int i = 0; i < 20; i++) {
+    //         printf(1, "Child process (pid: %d) is running (iteration: %d)\n", getpid(), i);
+    //         ps();
+    //         printQueue();
+    //     }
+    //     exit();
+    // } else {
+    //     printf(1, "Parent process (pid: %d) is running\n", getpid());
+    //     printQueue();
+    //     for (int i = 0; i < 10; i++) {
+    //         printf(1, "Parent process (pid: %d) is running (iteration: %d)\n", getpid(), i);
+    //         ps();
+    //         printQueue();
+    //     }
+    //     wait();
+    // }
 }
 
 void wakeup_priority_test() {
@@ -162,59 +199,67 @@ void wakeup_priority_test() {
 }
 
 void same_priority_test() {
-    int pid1, pid2, pid3;
-
-    pid1 = fork();
-    if (pid1 == 0) {
-        // ps();
-        // printQueue();
-        for (int i = 0; i < 10; i++) {
-            volatile unsigned int k = 1;
-            for (int j = 0; j < 100000000; j++) {
-                k *= j *123213;
-            }
-            printf(1, "Process 1 (pid: %d, priority: %d) running\n", getpid(), 2);
-            printQueue();
-            // yield();
+    // int pid1, pid2, pid3;
+    if (fork() == 0) {
+        printf(1, "Process 1 (pid: %d, priority: %d) running\n", getpid(), 2);
+        printQueue();
+        volatile unsigned int k = 1;
+        for (int j = 0; j < 100000000; j++) {
+            k *= j*13122;
         }
-        exit();
     }
-
-    pid2 = fork();
-    if (pid2 == 0) {
-        // ps();
-        // printQueue();
-        for (int i = 0; i < 10; i++) {
-            volatile unsigned int k = 1;
-            for (int j = 0; j < 100000000; j++) {
-                k *= j *123123;
-            }
-            printf(1, "Process 2 (pid: %d, priority: %d) running\n", getpid(), 2);
-            printQueue();
-            // yield();
+    if (fork() == 0) {
+        printf(1, "Process 2 (pid: %d, priority: %d) running\n", getpid(), 2);
+        printQueue();
+        volatile unsigned int k = 1;
+        for (int j = 0; j < 100000000; j++) {
+            k *= j*13122;
         }
-        exit();
     }
-
-    pid3 = fork();
-    if (pid3 == 0) {
-        // ps();
-        // printQueue();
-        for (int i = 0; i < 10; i++) {
-            volatile unsigned int k = 1;
-            for (int j = 0; j < 100000000; j++) {
-                k *= j *132123;
-            }
-            printf(1, "Process 3 (pid: %d, priority: %d) running\n", getpid(), 2);
-            printQueue();
-            // yield();
-        }
-        exit();
-    }
-
     wait();
     wait();
-    wait();
+    // pid1 = fork();
+    // if (pid1 == 0) {
+    //     for (int i = 0; i < 10; i++) {
+    //         printf(1, "Process 1 (pid: %d, priority: %d) running\n", getpid(), 2);
+    //         printQueue();
+    //         volatile unsigned int k = 1;
+    //         for (int j = 0; j < 100000000; j++) {
+    //             k *= j*13122;
+    //         }
+    //     }
+    //     exit();
+    // }
+
+    // pid2 = fork();
+    // if (pid2 == 0) {
+    //     for (int i = 0; i < 10; i++) {
+    //         printf(1, "Process 2 (pid: %d, priority: %d) running\n", getpid(), 2);
+    //         printQueue();
+    //         volatile unsigned int k = 1;
+    //         for (int j = 0; j < 100000000; j++) {
+    //             k *= j *1231;
+    //         }
+    //     }
+    //     exit();
+    // }
+
+    // pid3 = fork();
+    // if (pid3 == 0) {
+    //     for (int i = 0; i < 10; i++) {
+    //         printf(1, "Process 3 (pid: %d, priority: %d) running\n", getpid(), 2);
+    //         printQueue();
+    //         volatile unsigned int k = 1;
+    //         for (int j = 0; j < 100000000; j++) {
+    //             k *= j *132123;
+    //         }
+    //     }
+    //     exit();
+    // }
+
+    // wait();
+    // wait();
+    // wait();
 }
 
 void dynamic_queue_test() {
@@ -295,7 +340,7 @@ void priority_selection_test() {
                 printQueue();
                 volatile unsigned int k = 1;
                 for (int j = 0; j < 1000000; j++) {
-                    k *= j *13212;
+                    k *= j *13211231;
                 }
 
                 sleep(1);
@@ -323,8 +368,8 @@ int main(int argc, char **argv)
 //   printf(1, "====same_priority_test====\n");
 //   dynamic_queue_test();
 
-      printf(1, "--- mlfq Test ---\n");
-    mlfq_test();
+      printf(1, "--- mlfq_test Test ---\n");
+    time_slice_test();
 
     // printf(1, "\n--- Exit Test ---\n");
     // exit_test();
