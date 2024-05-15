@@ -467,10 +467,6 @@ int sys_swapwrite(void)
 	return 0;
 }
 
-int mmap(struct file* f, int off, int len, int flags)
-{
-	return -1;
-}
 
 int sys_mmap(void)
 {
@@ -482,10 +478,6 @@ int sys_mmap(void)
 	return mmap(f, off, len, flags);
 }
 
-int munmap(void* ptr, int len)
-{
-	return -1;
-}
 
 int sys_munmap(void)
 {
@@ -494,3 +486,4 @@ int sys_munmap(void)
 		return -1;
 	return munmap((void*)ptr, len);
 }
+

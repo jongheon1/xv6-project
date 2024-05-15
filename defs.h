@@ -33,6 +33,9 @@ void            fileinit(void);
 int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
+int             mmap(struct file* f, int off, int len, int flags);
+int             munmap(void* addr, int len);
+
 
 // fs.c
 void            readsb(int dev, struct superblock *sb);
@@ -186,7 +189,8 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
+pde_t*          walkpgdir(pde_t *pgdir, const void *va, int alloc);
+int             mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 // swap.c
 void swapread(char* ptr, int blkno);
 void swapwrite(char* ptr, int blkno);

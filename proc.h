@@ -34,6 +34,15 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct vma {
+    uint start;       // VMA의 시작 가상 주소
+    uint end;         // VMA의 끝 가상 주소
+    int prot;           // VMA의 보호 속성 (읽기, 쓰기 등)
+    struct file *file;  // 매핑된 파일
+    uint offset;        // 파일 내 오프셋
+    int valid;          // VMA가 사용 중인지 여부
+};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -50,6 +59,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  struct vma vmas[4];  // 프로세스 당 최대 4개의 VMA
+  int nvmas;           // 현재 프로세스의 VMA 개수
 };
 
 // Process memory is laid out contiguously, low addresses first:

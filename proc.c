@@ -140,6 +140,8 @@ userinit(void)
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
   p->nice = 2;
+  memset(p->vmas, 0, sizeof(p->vmas));
+  p->nvmas = 0;
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -202,6 +204,8 @@ fork(void)
   np->parent = curproc;
   np->nice = curproc->nice;
   *np->tf = *curproc->tf;
+  memset(np->vmas, 0, sizeof(np->vmas));
+  np->nvmas = 0;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;

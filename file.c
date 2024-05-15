@@ -9,6 +9,12 @@
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "memlayout.h"
+#include "mmu.h"
+#include "proc.h"
+
+
+#define MAX_FILES 16
 
 struct devsw devsw[NDEV];
 struct {
@@ -16,10 +22,28 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+struct file_mapping {
+    struct file* file;
+    int mapped; // 0: not mapped, 1: mapped
+};
+
+struct file_mapping global_file_mappings[MAX_FILES]; // 시스템에서 관리 가능한 최대 파일 수
+int global_nvmas = 0;            // 현재 시스템의 VMA 개수
+
+
+#define	MAP_FAILED	((void	*)	-1)
+#define	MAP_PROT_READ 0x00000001
+#define	MAP_PROT_WRITE 0x00000002
+
+void initialize_global_file_mappings() {
+    memset(global_file_mappings, 0, sizeof(global_file_mappings));
+}
+
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  initialize_global_file_mappings();
 }
 
 // Allocate a file structure.
@@ -56,6 +80,15 @@ filedup(struct file *f)
 void
 fileclose(struct file *f)
 {
+
+  struct proc *curproc = myproc();
+
+  for (int i = 0; i < 4; i++) {
+    if (curproc->vmas[i].valid && curproc->vmas[i].file == f) {
+      munmap((void *)curproc->vmas[i].start, curproc->vmas[i].end - curproc->vmas[i].start);
+    }
+  }
+
   struct file ff;
 
   acquire(&ftable.lock);
@@ -121,7 +154,7 @@ filewrite(struct file *f, char *addr, int n)
 
   if(f->writable == 0)
     return -1;
-  if(f->type == FD_PIPE)
+  if(f->type == FD_PIPE) 
     return pipewrite(f->pipe, addr, n);
   if(f->type == FD_INODE){
     // write a few blocks at a time to avoid exceeding
@@ -153,5 +186,214 @@ filewrite(struct file *f, char *addr, int n)
     return i == n ? n : -1;
   }
   panic("filewrite");
+}
+
+
+
+uint find_free_addr_range(struct proc *p, int len) {
+  uint addr = KERNBASE - PGSIZE;
+
+  for (; addr >= PGSIZE; addr -= PGSIZE) {
+    int found = 1;
+    for (int i = 0; i < 4; i++) {
+      if (p->vmas[i].valid) {
+        uint start = addr;
+        uint end = addr + len;
+        if ((start >= p->vmas[i].start && start < p->vmas[i].end) ||
+            (end > p->vmas[i].start && end <= p->vmas[i].end) ||
+            (start < p->vmas[i].start && end > p->vmas[i].end)) {
+          found = 0;
+          addr = p->vmas[i].start - PGSIZE;
+          break;
+        }
+      }
+    }
+    if (found) {
+      return addr;
+    }
+  }
+
+  return 0;
+}
+
+// 프로세스의 VMA 배열에서 빈 슬롯을 찾아 인덱스를 반환합니다.
+int find_free_vma_slot(struct proc *p) {
+  for (int i = 0; i < 4; i++) {
+    if (!p->vmas[i].valid) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// 프로세스의 VMA 배열에 새로운 VMA를 추가합니다.
+int add_vma(struct proc *p, uint start, uint end, int prot, struct file *file, uint offset) {
+  int slot = find_free_vma_slot(p);
+  if (slot < 0) {
+    return -1;
+  }
+  p->vmas[slot].start = start;
+  p->vmas[slot].end = end;
+  p->vmas[slot].prot = prot;
+  p->vmas[slot].file = file;
+  p->vmas[slot].offset = offset;
+  p->vmas[slot].valid = 1;
+  p->nvmas++;
+  return 0;
+}
+
+// 프로세스의 VMA 배열에서 주어진 주소에 해당하는 VMA를 찾아 인덱스를 반환합니다.
+int find_vma(struct proc *p, uint addr) {
+  for (int i = 0; i < 4; i++) {
+    if (p->vmas[i].valid && p->vmas[i].start <= addr && addr < p->vmas[i].end) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int is_file_mapped(struct file* f) {
+  for (int i = 0; i < MAX_FILES; i++) {
+    if (global_file_mappings[i].file == f && global_file_mappings[i].mapped) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void map_file(struct file* f) {
+  for (int i = 0; i < MAX_FILES; i++) {
+    if (global_file_mappings[i].file == 0) {
+      global_file_mappings[i].file = f;
+      global_file_mappings[i].mapped = 1;
+      break;
+    }
+  }
+}
+
+void unmap_file(struct file* f) {
+  for (int i = 0; i < MAX_FILES; i++) {
+    if (global_file_mappings[i].file == f) {
+      global_file_mappings[i].file = 0;
+      global_file_mappings[i].mapped = 0;
+      break;
+    }
+  }
+}
+
+void remove_vma(struct proc* p, uint start, uint end) {
+  for (int i = 0; i < 4; i++) {
+    if (p->vmas[i].valid && p->vmas[i].start == start && p->vmas[i].end == end) {
+      // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
+      p->vmas[i].valid = 0;
+      p->nvmas--;
+      
+      // 시스템 전체 VMA 개수 감소
+      global_nvmas--;      
+      break;
+    }
+  }
+}
+
+
+void unmap_pages(pde_t *pgdir, uint start, uint end) {
+  for (uint a = start; a < end; a += PGSIZE) {
+    pte_t *pte = walkpgdir(pgdir, (void*)a, 0);
+    if (pte && (*pte & PTE_P)) {
+      kfree((char*)P2V(PTE_ADDR(*pte)));
+      *pte = 0;
+    }
+  }
+}
+
+int mmap(struct file* f, int off, int len, int flags)
+{
+	  struct proc *p = myproc();
+
+  // 파일과 오프셋, 길이 값을 검증합니다.
+  if (f == 0 || !f->readable || off < 0 || len <= 0 || off % PGSIZE != 0 || global_nvmas >= 16) {
+    return -1;
+  }
+
+  if (is_file_mapped(f)) {
+    return -1;
+  }
+
+  // VMA의 시작 주소를 찾습니다. (구현해야 함)
+  uint start = find_free_addr_range(p, len);
+  if (start == 0) {
+    return -1;
+  }
+
+  // VMA를 생성하고 프로세스의 VMA 배열에 추가합니다.
+  if (add_vma(p, start, start + len, flags, f, off) < 0) {
+    return -1;
+  }
+  map_file(f);
+  global_nvmas++;
+  f->off = off;
+
+  for (uint a = start; a < start + len; a += PGSIZE) {
+    //매핑된 파일을 올리기 위한 물리 메모리 할당
+    char *mem = kalloc();
+    if (mem == 0) {
+      // 메모리 할당 실패 시 이전에 할당한 페이지 해제와 VMA 제거
+      unmap_pages(p->pgdir, start, a);
+      remove_vma(p, start, start + len);
+      unmap_file(f);
+      global_nvmas--;
+      return -1;
+    }
+    memset(mem, 0, PGSIZE);
+
+    int pte_flags = PTE_U;
+    if (flags & MAP_PROT_WRITE) {
+      pte_flags |= PTE_W;
+    }
+    //가상 주소가 할당 받은 물리 메모리를 참조할 수 있도록 페이지 테이블 생성
+    if (mappages(p->pgdir, (void*)a, PGSIZE, V2P(mem), pte_flags) < 0) {
+      // 페이지 매핑 실패 시 할당한 페이지와 VMA 제거
+      kfree(mem);
+      unmap_pages(p->pgdir, start, a);
+      remove_vma(p, start, start + len);
+      unmap_file(f);
+      global_nvmas--;
+      return -1;
+    }
+    //이제 물리 메모리(mem)에 파일 올려놓으면 가상 메모리에 접근 가능
+    fileread(f, mem, PGSIZE);
+    //offset reset
+     f->off = off;
+  }
+
+  return start;
+}
+
+int munmap(void* addr, int len) {
+    struct proc *p = myproc();
+
+    // 주소 값을 검증합니다.
+    if (addr == 0 || (uint)addr % PGSIZE != 0) {
+        return -1;
+    }
+
+    // 해당 주소 범위와 정확히 일치하는 VMA를 찾습니다.
+    for (int i = 0; i < 4; i++) {
+        if (p->vmas[i].valid && p->vmas[i].start == (uint)addr && p->vmas[i].end == (uint)addr + len) {
+            // 파일 백킹 VMA인 경우 dirty page를 파일에 씁니다.
+            if (p->vmas[i].file != 0 && (p->vmas[i].prot & MAP_PROT_WRITE)) {              
+              filewrite(p->vmas[i].file, (char*)p->vmas[i].start, p->vmas[i].end - p->vmas[i].start);
+            }
+            // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
+            p->vmas[i].valid = 0;
+            p->nvmas--;
+            global_nvmas--;
+            unmap_file(p->vmas[i].file);
+            // 해당 주소 범위의 페이지를 해제합니다.
+            unmap_pages(p->pgdir, (uint)addr, (uint)addr + len);
+            return 0;
+        }
+    }
+    return -1;
 }
 
