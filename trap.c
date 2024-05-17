@@ -59,7 +59,6 @@ int grow_stack(struct proc *curproc, uint addr) {
 
 int grow_heap(struct proc *curproc, uint addr) {
   char* mem;
-
   addr = PGROUNDDOWN(addr);
 
   mem = kalloc();
@@ -107,7 +106,7 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
     perm |= PTE_W;
   }
 
-  addr = PGROUNDDOWN(addr);
+  // addr = PGROUNDDOWN(addr);
   if (mappages(curproc->pgdir, (void*)addr, PGSIZE, V2P(mem), perm) < 0) {
     kfree(mem);
     return -1;  // 페이지 매핑 실패
@@ -117,11 +116,12 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
 }
 
 int pagefault_handler(struct trapframe *tf) {
-  uint addr = rcr2();
+  uint addr = PGROUNDDOWN(rcr2());
+  // addr = PGROUNDDOWN(addr);
   struct proc *curproc = myproc();
 
   // 페이지 폴트가 유효한 주소 범위 내에서 발생했는지 확인
-  if (addr >= KERNBASE) {
+  if (addr >= KERNBASE || addr < curproc->stack_guard + PGSIZE) {
     return -1;  // 잘못된 메모리 접근
   }
 
@@ -132,24 +132,32 @@ int pagefault_handler(struct trapframe *tf) {
       return -1;  // 읽기 전용 페이지에 쓰기 작업 시도
     }
   }
+
   // 매핑된 파일 영역에서 페이지 폴트가 발생한 경우 처리
   if (handle_mapped_file(curproc, addr) == 0) {
       return 0;  // 정상 처리
   }
 
-  // 힙 영역에서 페이지 폴트가 발생한 경우
-  
-  if (addr < curproc->sz) {
-    if (grow_heap(curproc, addr) == 0) {
-      return 0;  // 힙 확장 성공
-    }  
+  // 스택 영역에서 페이지 폴트가 발생한 경우
+  if (addr < curproc->tf->esp) {
+    cprintf("Page fault: handled stack\n"); 
+    if ((addr = allocuvm(curproc->pgdir, addr, addr + PGSIZE)) == 0) {
+      return -1;
+    }
+    curproc->tf->esp = addr - PGSIZE;
+    //print esp
+    cprintf("sp: %p, stack guard: %p\n", curproc->tf->esp, curproc->stack_guard);
+    return 0;
   }
 
-  // // 스택 영역에서 페이지 폴트가 발생한 경우
-
-
-
-  return -1;  // 처리되지 않은 페이지 폴트
+  //나머지는 모두 힙 영역
+  cprintf("Page fault: handled heap\n");
+  if ((addr = allocuvm(curproc->pgdir, addr, addr + PGSIZE)) == 0) {
+    return -1;
+  }
+  curproc->sz = addr;
+  
+  return 0;
 }
 
 
@@ -167,6 +175,10 @@ trap(struct trapframe *tf)
     return;
   }
   if (tf->trapno == T_PGFLT) {
+    cprintf("page_fault pid %d %s: trap %d err %d on cpu %d "
+        "eip 0x%x addr 0x%x\n",
+        myproc()->pid, myproc()->name, tf->trapno, tf->err, cpuid(), tf->eip, rcr2());
+
     int res = pagefault_handler(tf);
     if (res == -1) {
       // 잘못된 메모리 접근으로 인한 페이지 폴트인 경우 프로세스 종료
@@ -174,7 +186,7 @@ trap(struct trapframe *tf)
               "eip 0x%x addr 0x%x--kill proc\n",
               myproc()->pid, myproc()->name, tf->trapno, tf->err, cpuid(), tf->eip, rcr2());
       myproc()->killed = 1;
-      return;
+      exit();
     }
     // Demand paging 처리 후 원래 실행 흐름으로 돌아감
     return;

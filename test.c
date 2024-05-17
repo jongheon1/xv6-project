@@ -10,22 +10,22 @@
 #define MAP_FAILED ((void*)-1)
 
 int main(int argc, char *argv[]) {
-//   int stack_var = 0;
+  int stack_var = 0;
   char *heap_ptr = 0;
 
   printf(1, "Lazy Allocation Test\n");
 
   // 스택 확장 테스트
   printf(1, "Stack Allocation Test\n");
-//   printf(1, "Current stack variable address: %p\n", &stack_var);
+  printf(1, "Current stack variable address: %p\n", &stack_var);
 
-  // 스택 포인터를 감소시켜 스택 확장 유도
-//   int *stack_ptr = &stack_var;
-//   for (int i = 0; i < 4; i++) {
-//     stack_ptr -= PGSIZE / sizeof(int);
-//     printf(1, "Accessing stack address: %p\n", stack_ptr);
-//     *stack_ptr = i;
-//   }
+//   스택 포인터를 감소시켜 스택 확장 유도
+  int *stack_ptr = &stack_var;
+  for (int i = 0; i < 3; i++) {
+    stack_ptr -= PGSIZE / sizeof(int);
+    printf(1, "Accessing stack address: %p\n", stack_ptr);
+    *stack_ptr = i;
+  }
 
   // 힙 확장 테스트
   printf(1, "Heap Allocation Test\n");
@@ -39,12 +39,12 @@ int main(int argc, char *argv[]) {
   }
 
   // 결과 출력
-//   printf(1, "Stack Allocation Result\n");
-//   stack_ptr = &stack_var;
-//   for (int i = 0; i < 4; i++) {
-//     stack_ptr -= PGSIZE / sizeof(int);
-//     printf(1, "Stack address: %p, Value: %d\n", stack_ptr, *stack_ptr);
-//   }
+  printf(1, "Stack Allocation Result\n");
+  stack_ptr = &stack_var;
+  for (int i = 0; i < 3; i++) {
+    stack_ptr -= PGSIZE / sizeof(int);
+    printf(1, "Stack address: %p, Value: %d\n", stack_ptr, *stack_ptr);
+  }
 
   printf(1, "Heap Allocation Result\n");
   heap_ptr = sbrk(0) - 4 * PGSIZE;
