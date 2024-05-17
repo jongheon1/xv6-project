@@ -333,38 +333,38 @@ int mmap(struct file* f, int off, int len, int flags)
   global_nvmas++;
   f->off = off;
 
-  for (uint a = start; a < start + len; a += PGSIZE) {
-    //매핑된 파일을 올리기 위한 물리 메모리 할당
-    char *mem = kalloc();
-    if (mem == 0) {
-      // 메모리 할당 실패 시 이전에 할당한 페이지 해제와 VMA 제거
-      unmap_pages(p->pgdir, start, a);
-      remove_vma(p, start, start + len);
-      unmap_file(f);
-      global_nvmas--;
-      return -1;
-    }
-    memset(mem, 0, PGSIZE);
+  // for (uint a = start; a < start + len; a += PGSIZE) {
+  //   //매핑된 파일을 올리기 위한 물리 메모리 할당
+  //   char *mem = kalloc();
+  //   if (mem == 0) {
+  //     // 메모리 할당 실패 시 이전에 할당한 페이지 해제와 VMA 제거
+  //     unmap_pages(p->pgdir, start, a);
+  //     remove_vma(p, start, start + len);
+  //     unmap_file(f);
+  //     global_nvmas--;
+  //     return -1;
+  //   }
+  //   memset(mem, 0, PGSIZE);
 
-    int pte_flags = PTE_U;
-    if (flags & MAP_PROT_WRITE) {
-      pte_flags |= PTE_W;
-    }
-    //가상 주소가 할당 받은 물리 메모리를 참조할 수 있도록 페이지 테이블 생성
-    if (mappages(p->pgdir, (void*)a, PGSIZE, V2P(mem), pte_flags) < 0) {
-      // 페이지 매핑 실패 시 할당한 페이지와 VMA 제거
-      kfree(mem);
-      unmap_pages(p->pgdir, start, a);
-      remove_vma(p, start, start + len);
-      unmap_file(f);
-      global_nvmas--;
-      return -1;
-    }
-    //이제 물리 메모리(mem)에 파일 올려놓으면 가상 메모리에 접근 가능
-    fileread(f, mem, PGSIZE);
-    //offset reset
-     f->off = off;
-  }
+  //   int pte_flags = PTE_U;
+  //   if (flags & MAP_PROT_WRITE) {
+  //     pte_flags |= PTE_W;
+  //   }
+  //   //가상 주소가 할당 받은 물리 메모리를 참조할 수 있도록 페이지 테이블 생성
+  //   if (mappages(p->pgdir, (void*)a, PGSIZE, V2P(mem), pte_flags) < 0) {
+  //     // 페이지 매핑 실패 시 할당한 페이지와 VMA 제거
+  //     kfree(mem);
+  //     unmap_pages(p->pgdir, start, a);
+  //     remove_vma(p, start, start + len);
+  //     unmap_file(f);
+  //     global_nvmas--;
+  //     return -1;
+  //   }
+  //   //이제 물리 메모리(mem)에 파일 올려놓으면 가상 메모리에 접근 가능
+  //   fileread(f, mem, PGSIZE);
+  //   //offset reset
+  //    f->off = off;
+  // }
 
   return start;
 }
