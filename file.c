@@ -14,7 +14,6 @@
 #include "proc.h"
 
 
-#define MAX_FILES 16
 
 struct devsw devsw[NDEV];
 struct {
@@ -27,23 +26,17 @@ struct file_mapping {
     int mapped; // 0: not mapped, 1: mapped
 };
 
-struct file_mapping global_file_mappings[MAX_FILES]; // 시스템에서 관리 가능한 최대 파일 수
-int global_nvmas = 0;            // 현재 시스템의 VMA 개수
 
 
 #define	MAP_FAILED	((void	*)	-1)
 #define	MAP_PROT_READ 0x00000001
 #define	MAP_PROT_WRITE 0x00000002
 
-void initialize_global_file_mappings() {
-    memset(global_file_mappings, 0, sizeof(global_file_mappings));
-}
 
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
-  initialize_global_file_mappings();
 }
 
 // Allocate a file structure.
@@ -252,35 +245,6 @@ int find_vma(struct proc *p, uint addr) {
   return -1;
 }
 
-int is_file_mapped(struct file* f) {
-  for (int i = 0; i < MAX_FILES; i++) {
-    if (global_file_mappings[i].file == f && global_file_mappings[i].mapped) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-void map_file(struct file* f) {
-  for (int i = 0; i < MAX_FILES; i++) {
-    if (global_file_mappings[i].file == 0) {
-      global_file_mappings[i].file = f;
-      global_file_mappings[i].mapped = 1;
-      break;
-    }
-  }
-}
-
-void unmap_file(struct file* f) {
-  for (int i = 0; i < MAX_FILES; i++) {
-    if (global_file_mappings[i].file == f) {
-      global_file_mappings[i].file = 0;
-      global_file_mappings[i].mapped = 0;
-      break;
-    }
-  }
-}
-
 void remove_vma(struct proc* p, uint start, uint end) {
   for (int i = 0; i < 4; i++) {
     if (p->vmas[i].valid && p->vmas[i].start == start && p->vmas[i].end == end) {
@@ -288,8 +252,6 @@ void remove_vma(struct proc* p, uint start, uint end) {
       p->vmas[i].valid = 0;
       p->nvmas--;
       
-      // 시스템 전체 VMA 개수 감소
-      global_nvmas--;      
       break;
     }
   }
@@ -311,11 +273,7 @@ int mmap(struct file* f, int off, int len, int flags)
 	  struct proc *p = myproc();
 
   // 파일과 오프셋, 길이 값을 검증합니다.
-  if (f == 0 || !f->readable || off < 0 || len <= 0 || off % PGSIZE != 0 || global_nvmas >= 16) {
-    return -1;
-  }
-
-  if (is_file_mapped(f)) {
+  if (f == 0 || !f->readable || off < 0 || len <= 0 || off % PGSIZE != 0) {
     return -1;
   }
 
@@ -329,8 +287,6 @@ int mmap(struct file* f, int off, int len, int flags)
   if (add_vma(p, start, start + len, flags, f, off) < 0) {
     return -1;
   }
-  map_file(f);
-  global_nvmas++;
   f->off = off;
 
   // for (uint a = start; a < start + len; a += PGSIZE) {
@@ -387,8 +343,6 @@ int munmap(void* addr, int len) {
             // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
             p->vmas[i].valid = 0;
             p->nvmas--;
-            global_nvmas--;
-            unmap_file(p->vmas[i].file);
             // 해당 주소 범위의 페이지를 해제합니다.
             unmap_pages(p->pgdir, (uint)addr, (uint)addr + len);
             return 0;

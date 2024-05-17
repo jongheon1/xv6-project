@@ -113,12 +113,13 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
   if (vma->prot & PTE_W) {
     perm |= PTE_W;
   }
-  cprintf("\naddress : %p \n", addr);
+
+  addr = PGROUNDDOWN(addr);
   if (mappages(curproc->pgdir, (void*)addr, PGSIZE, V2P(mem), perm) < 0) {
     kfree(mem);
     return -1;  // 페이지 매핑 실패
   }
-
+  
   return 0;  // 매핑된 파일 처리 성공
 }
 

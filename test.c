@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     printf(1, "write success ! \n");
 
     // Test 1: mmap with read/write flag
-    addr = mmap(fd, 0, 20, PROT_READ | PROT_WRITE);
+    addr = mmap(fd, PGSIZE, PGSIZE, PROT_READ | PROT_WRITE);
     if (addr == MAP_FAILED) {
         printf(1, "mmap failed\n");
         exit();
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     // 매핑된 메모리 영역의 내용 출력
     printf(1, "Read from mmap: ");
     for (i = 0; i < 10; i++) {
-    printf(1, "%c", addr[5 + i]);
+        printf(1, "%c", addr[i]);
     }
     printf(1, "\n");
 
