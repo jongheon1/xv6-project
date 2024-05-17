@@ -1,12 +1,14 @@
 #include "types.h"
 #include "defs.h"
 #include "param.h"
+#include "fs.h"
+#include "spinlock.h"
+#include "sleeplock.h"
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
 #include "traps.h"
-#include "spinlock.h"
 #include "file.h"
 
 // Interrupt descriptor table (shared by all CPUs).
@@ -78,10 +80,16 @@ int grow_heap(struct proc *curproc, uint addr) {
 }
 
 int handle_mapped_file(struct proc *curproc, uint addr) {
-  struct vma *vma = &curproc->vmas[find_vma(curproc, addr)];
-  if (vma < 0) {
-    return -1;  // 해당 주소에 매핑된 VMA가 없는 경우
-  }
+    struct vma *vma = 0;
+    for (int i = 0; i < 4; i++) {
+        if (curproc->vmas[i].valid && curproc->vmas[i].start <= addr && addr < curproc->vmas[i].end) {
+            vma = &curproc->vmas[i];
+            break;
+        }
+    }
+    if (vma == 0) {
+        return -1;
+    }
 
   // 물리 페이지 할당
   char *mem = kalloc();
@@ -105,6 +113,7 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
   if (vma->prot & PTE_W) {
     perm |= PTE_W;
   }
+  cprintf("\naddress : %p \n", addr);
   if (mappages(curproc->pgdir, (void*)addr, PGSIZE, V2P(mem), perm) < 0) {
     kfree(mem);
     return -1;  // 페이지 매핑 실패

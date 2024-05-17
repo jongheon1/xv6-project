@@ -35,7 +35,6 @@ int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
 int             mmap(struct file* f, int off, int len, int flags);
 int             munmap(void* addr, int len);
-int             find_vma(struct proc *p, uint addr);
 
 // fs.c
 void            readsb(int dev, struct superblock *sb);

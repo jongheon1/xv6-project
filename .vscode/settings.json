@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "fcntl.h": "c",
+        "memlayout.h": "c",
+        "sleeplock.h": "c",
         "traps.h": "c"
     }
 }
