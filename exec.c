@@ -71,6 +71,7 @@ exec(char *path, char **argv)
   if((sz = allocuvm(pgdir, sz + PGSIZE*(3), sz + PGSIZE*4)) == 0)
 	goto bad;
   sp = sz;
+  curproc->stack_bottom = sz - PGSIZE;
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {

@@ -35,45 +35,6 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
-int grow_stack(struct proc *curproc, uint addr) {
-  // 스택 크기 제한 확인
-  // if (addr < curproc->stack_base - PGSIZE) {
-  //   return -1;  // 스택 크기 제한을 초과한 경우 확장 불가
-  // }
-  // // 새로운 물리 페이지 할당
-  // char *mem = kalloc();
-  // if (mem == 0) {
-  //   return -1;  // 메모리 할당 실패
-  // }
-  // // 할당한 물리 페이지 초기화
-  // memset(mem, 0, PGSIZE);
-  // // 페이지 테이블에 매핑
-  // if (mappages(curproc->pgdir, (char*)PGROUNDDOWN(addr), PGSIZE, V2P(mem), PTE_W|PTE_U) < 0) {
-  //   kfree(mem);
-  //   return -1;  // 페이지 매핑 실패
-  // }
-  // // 스택 포인터 업데이트
-  // curproc->stack_base -= PGSIZE;
-  return 0;  // 스택 확장 성공
-}
-
-int grow_heap(struct proc *curproc, uint addr) {
-  char* mem;
-  addr = PGROUNDDOWN(addr);
-
-  mem = kalloc();
-  if (mem == 0) {
-    return -1;  // 메모리 할당 실패
-  }
-  memset(mem, 0, PGSIZE);
-  if(mappages(curproc->pgdir, (void*)addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0) {
-    kfree(mem);
-    return -1;  // 페이지 매핑 실패
-  }
-
-  return 0;  // 힙 확장 성공
-}
-
 int handle_mapped_file(struct proc *curproc, uint addr) {
     struct vma *vma = 0;
     for (int i = 0; i < 4; i++) {
@@ -139,14 +100,12 @@ int pagefault_handler(struct trapframe *tf) {
   }
 
   // 스택 영역에서 페이지 폴트가 발생한 경우
-  if (addr < curproc->tf->esp) {
+  if (addr < curproc->stack_bottom) {
     cprintf("Page fault: handled stack\n"); 
     if ((addr = allocuvm(curproc->pgdir, addr, addr + PGSIZE)) == 0) {
       return -1;
     }
-    curproc->tf->esp = addr - PGSIZE;
-    //print esp
-    cprintf("sp: %p, stack guard: %p\n", curproc->tf->esp, curproc->stack_guard);
+    curproc->stack_bottom = addr - PGSIZE;
     return 0;
   }
 

@@ -62,6 +62,7 @@ struct proc {
   struct vma vmas[4];  // 프로세스 당 최대 4개의 VMA
   int nvmas;           // 현재 프로세스의 VMA 개수
   uint stack_guard;    // 스택 가드 페이지 주소
+  uint stack_bottom; 
 };
 
 // Process memory is laid out contiguously, low addresses first:

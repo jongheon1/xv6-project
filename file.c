@@ -345,6 +345,8 @@ int munmap(void* addr, int len) {
             p->nvmas--;
             // 해당 주소 범위의 페이지를 해제합니다.
             unmap_pages(p->pgdir, (uint)addr, (uint)addr + len);
+            //TLB flush
+            switchuvm(p);
             return 0;
         }
     }

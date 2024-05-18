@@ -207,6 +207,8 @@ fork(void)
   *np->tf = *curproc->tf;
   memset(np->vmas, 0, sizeof(np->vmas));
   np->nvmas = 0;
+  np->stack_bottom = curproc->stack_bottom;
+  np->stack_guard = curproc->stack_guard;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;

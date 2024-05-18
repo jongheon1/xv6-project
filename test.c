@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 
 //   스택 포인터를 감소시켜 스택 확장 유도
   int *stack_ptr = &stack_var;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 2; i++) {
     stack_ptr -= PGSIZE / sizeof(int);
     printf(1, "Accessing stack address: %p\n", stack_ptr);
     *stack_ptr = i;
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   // 결과 출력
   printf(1, "Stack Allocation Result\n");
   stack_ptr = &stack_var;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 2; i++) {
     stack_ptr -= PGSIZE / sizeof(int);
     printf(1, "Stack address: %p, Value: %d\n", stack_ptr, *stack_ptr);
   }
