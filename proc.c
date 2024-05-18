@@ -271,6 +271,7 @@ exit(void)
     }
   }
 
+  freevm(curproc->pgdir);
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
   sched();
