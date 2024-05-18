@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     // printf(1, "write success ! \n");
 
     // // Test 1: mmap with read/write flag
-    // addr = mmap(fd, 2*PGSIZE, PGSIZE, PROT_READ | PROT_WRITE);
+    // addr = mmap(fd, 0, PGSIZE, PROT_READ | PROT_WRITE);
     // if (addr == MAP_FAILED) {
     //     printf(1, "mmap failed\n");
     //     exit();
@@ -93,11 +93,23 @@ int main(int argc, char *argv[]) {
     // addr[0] = 'b';
 
     // // Test 2: munmap
+    // if (munmap(addr + PGSIZE, PGSIZE) < 0) {
+    //     printf(1, "munmap 1 failed\n");
+    //     // exit();
+    // }
+    // printf(1, "munmap 1 success\n");
+    // if (munmap(addr + 20, PGSIZE) < 0) {
+    //     printf(1, "munmap 2 failed\n");
+    //     // exit();
+    // }
+    // printf(1, "munmap 2 success\n");
+
     // if (munmap(addr, PGSIZE) < 0) {
-    //     printf(1, "munmap failed\n");
-    //     exit();
+    //   printf(1, "munmap failed\n");
+    //   exit();
     // }
     // printf(1, "munmap success\n");
+
 
     // addr = mmap(fd, 0, PGSIZE, PROT_READ | PROT_WRITE);
     // if (addr == MAP_FAILED) {
@@ -108,7 +120,7 @@ int main(int argc, char *argv[]) {
 
     // // 매핑된 메모리 영역의 내용 출력
     // printf(1, "Read from mmap: ");
-    // for (i = 0; i < 20; i++) {
+    // for (i = 0; i < 10; i++) {
     // printf(1, "%c", addr[i]);
     // }
     // printf(1, "\n");

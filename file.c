@@ -333,9 +333,12 @@ int munmap(void* addr, int len) {
         return -1;
     }
 
-    // 해당 주소 범위와 정확히 일치하는 VMA를 찾습니다.
     for (int i = 0; i < 4; i++) {
-        if (p->vmas[i].valid && p->vmas[i].start == (uint)addr && p->vmas[i].end == (uint)addr + len) {
+      if (p->vmas[i].valid && 
+      ((p->vmas[i].start <= (uint)addr && (uint)addr < p->vmas[i].end) ||
+      (p->vmas[i].start < (uint)addr + len && (uint)addr + len <= p->vmas[i].end)
+      )) {
+        if (p->vmas[i].start == (uint)addr && p->vmas[i].end == (uint)addr + len) {
             // 파일 백킹 VMA인 경우 dirty page를 파일에 씁니다.
             if (p->vmas[i].file != 0 && (p->vmas[i].prot & MAP_PROT_WRITE)) {              
               filewrite(p->vmas[i].file, (char*)p->vmas[i].start, p->vmas[i].end - p->vmas[i].start);
@@ -348,8 +351,11 @@ int munmap(void* addr, int len) {
             //TLB flush
             switchuvm(p);
             return 0;
+        } else {
+          return -1;
         }
+      }
     }
-    return -1;
+    return 0;
 }
 
