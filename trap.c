@@ -44,7 +44,7 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
         }
     }
     if (vma == 0) {
-        return -1;
+        return 1;
     }
 
   // 물리 페이지 할당
@@ -54,6 +54,7 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
   }
   memset(mem, 0, PGSIZE);
 
+  vma->file->off = vma->offset;
   int bytes = fileread(vma->file, mem, PGSIZE);
   if (bytes < 0) {
     kfree(mem);
@@ -82,7 +83,7 @@ int pagefault_handler(struct trapframe *tf) {
   struct proc *curproc = myproc();
 
   // 페이지 폴트가 유효한 주소 범위 내에서 발생했는지 확인
-  if (addr >= KERNBASE || addr < curproc->stack_guard + PGSIZE) {
+  if (addr >= KERNBASE || addr < curproc->stack_guard) {
     return -1;  // 잘못된 메모리 접근
   }
 
@@ -95,8 +96,9 @@ int pagefault_handler(struct trapframe *tf) {
   }
 
   // 매핑된 파일 영역에서 페이지 폴트가 발생한 경우 처리
-  if (handle_mapped_file(curproc, addr) == 0) {
-      return 0;  // 정상 처리
+  int ret = handle_mapped_file(curproc, addr);
+  if (ret <= 0) {
+    return ret;
   }
 
   // 스택 영역에서 페이지 폴트가 발생한 경우

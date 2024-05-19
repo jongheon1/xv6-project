@@ -141,7 +141,6 @@ userinit(void)
   p->tf->eip = 0;  // beginning of initcode.S
   p->nice = 2;
   memset(p->vmas, 0, sizeof(p->vmas));
-  p->nvmas = 0;
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -206,7 +205,6 @@ fork(void)
   np->nice = curproc->nice;
   *np->tf = *curproc->tf;
   memset(np->vmas, 0, sizeof(np->vmas));
-  np->nvmas = 0;
   np->stack_bottom = curproc->stack_bottom;
   np->stack_guard = curproc->stack_guard;
 

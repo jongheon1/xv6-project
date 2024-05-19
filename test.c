@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     printf(1, "test start ! \n");
   
     // Open file
-    if ((fd = open("TRICKS", O_RDWR | O_CREATE)) < 0) {
+    if ((fd = open("README", O_RDWR | O_CREATE)) < 0) {
         printf(1, "open failed\n");
         exit();
     }
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     printf(1, "write success ! \n");
 
     // Test 1: mmap with read/write flag
-    addr = mmap(fd, 0, PGSIZE, PROT_READ | PROT_WRITE);
+    addr = mmap(fd, PGSIZE, PGSIZE, PROT_READ | PROT_WRITE);
     if (addr == MAP_FAILED) {
         printf(1, "mmap failed\n");
         exit();
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     printf(1, "\n");
 
     // 매핑된 메모리 영역 수정
-    addr[0] = 'b';
+    // addr[0] = 'b';
 
     // Test 2: munmap
     if (munmap(addr + PGSIZE, PGSIZE) < 0) {

@@ -21,13 +21,6 @@ struct {
   struct file file[NFILE];
 } ftable;
 
-struct file_mapping {
-    struct file* file;
-    int mapped; // 0: not mapped, 1: mapped
-};
-
-
-
 #define	MAP_FAILED	((void	*)	-1)
 #define	MAP_PROT_READ 0x00000001
 #define	MAP_PROT_WRITE 0x00000002
@@ -231,18 +224,7 @@ int add_vma(struct proc *p, uint start, uint end, int prot, struct file *file, u
   p->vmas[slot].file = file;
   p->vmas[slot].offset = offset;
   p->vmas[slot].valid = 1;
-  p->nvmas++;
   return 0;
-}
-
-// 프로세스의 VMA 배열에서 주어진 주소에 해당하는 VMA를 찾아 인덱스를 반환합니다.
-int find_vma(struct proc *p, uint addr) {
-  for (int i = 0; i < 4; i++) {
-    if (p->vmas[i].valid && p->vmas[i].start <= addr && addr < p->vmas[i].end) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 void remove_vma(struct proc* p, uint start, uint end) {
@@ -250,7 +232,6 @@ void remove_vma(struct proc* p, uint start, uint end) {
     if (p->vmas[i].valid && p->vmas[i].start == start && p->vmas[i].end == end) {
       // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
       p->vmas[i].valid = 0;
-      p->nvmas--;
       
       break;
     }
@@ -277,7 +258,7 @@ int mmap(struct file* f, int off, int len, int flags)
     return -1;
   }
 
-  // VMA의 시작 주소를 찾습니다. (구현해야 함)
+  // VMA의 시작 주소를 찾습니다.
   uint start = find_free_addr_range(p, len);
   if (start == 0) {
     return -1;
@@ -287,8 +268,6 @@ int mmap(struct file* f, int off, int len, int flags)
   if (add_vma(p, start, start + len, flags, f, off) < 0) {
     return -1;
   }
-  f->off = off;
-
   // for (uint a = start; a < start + len; a += PGSIZE) {
   //   //매핑된 파일을 올리기 위한 물리 메모리 할당
   //   char *mem = kalloc();
@@ -345,7 +324,6 @@ int munmap(void* addr, int len) {
             }
             // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
             p->vmas[i].valid = 0;
-            p->nvmas--;
             // 해당 주소 범위의 페이지를 해제합니다.
             unmap_pages(p->pgdir, (uint)addr, (uint)addr + len);
             //TLB flush
