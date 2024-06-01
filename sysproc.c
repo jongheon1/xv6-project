@@ -104,14 +104,3 @@ int sys_nice(void)
 	return nice(value);
 }
 
-int sys_ps(void)
-{
-  ps();
-  return 0;
-}
-
-int sys_printQueue(void)
-{
-  printQueue();
-  return 0;
-}

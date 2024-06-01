@@ -28,35 +28,6 @@ void initMlfq(void) {
   }
 }
 
-int printQueue(void) {
-  cprintf("====printQueue====\n");
-  for (int i = 0; i < 3; i++) {
-    struct proc* p = mlfq.queue[i].head;
-    cprintf("Queue %d: \n", i);
-    while (p != 0) {
-  cprintf("%s \t %d \t %d \t %d \t %d \n", p->name, p->pid, p->state, p->level, p->time_slice);
-      p = p->next;
-    }
-  }
-  cprintf("======endQueue=======\n");
-  return 0;
-}
-
-
-int ps(void)
-{
- struct proc *p;
- extern uint ticks;
- cprintf("name \t pid \t state \t level \t time \t ticks: %d \n", ticks);
- acquire(&ptable.lock);
- for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-  if(p->state == UNUSED || p->state == EMBRYO) continue;
-  cprintf("%s \t %d \t %d \t %d \t %d \n", p->name, p->pid, p->state, p->level, p->time_slice);
- }
- cprintf("=====================ps end=====================\n");
- release(&ptable.lock);
- return 0;
-}
 
 void push(struct proc* p, int level, int front) {
   if (front) {
