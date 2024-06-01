@@ -1,51 +1,30 @@
-NOTE: we have stopped maintaining the x86 version of xv6, and switched
-our efforts to the RISC-V version
-(https://github.com/mit-pdos/xv6-riscv.git)
+# xv6-virtual-memory
 
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern x86-based multiprocessor using ANSI C.
+이 프로젝트는 MIT의 xv6 운영체제를 기반으로 가상 메모리 기능을 추가 구현한 것입니다. 
 
-ACKNOWLEDGMENTS
+## 원 프로젝트 정보
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+이 프로젝트는 [MIT xv6](https://pdos.csail.mit.edu/6.828/2022/xv6.html) 운영체제를 기반으로 합니다. xv6는 Unix v6를 x86 아키텍처에 맞게 재구현한 교육용 운영체제입니다. 
 
-xv6 borrows code from the following sources:
-    JOS (asm.h, elf.h, mmu.h, bootasm.S, ide.c, console.c, and others)
-    Plan 9 (entryother.S, mp.h, mp.c, lapic.c)
-    FreeBSD (ioapic.c)
-    NetBSD (console.c)
+xv6의 소스 코드는 Frans Kaashoek, Robert Morris, Russ Cox가 저작권을 갖고 있습니다. 자세한 내용은 [GitHub 저장소](https://github.com/mit-pdos/xv6-riscv)를 참조하세요.
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+# Priority Scheduler
 
-We are also grateful for the bug reports and patches contributed by Silas
-Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed, eyalz800,
-Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel Filardo, Peter
-Froehlich, Yakir Goaron,Shivam Handa, Bryan Henry, Jim Huang, Alexander
-Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller, Eddie Kohler, Austin
-Liew, Imbar Marinescu, Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi
-Merimovich, Mark Morrissey, mtasm, Joel Nider, Greg Price, Ayan Shafqat,
-Eldar Sehayek, Yongming Shen, Cam Tenny, tyfkda, Rafael Ubal, Warren
-Toomey, Stephen Tu, Pablo Ventura, Xi Wang, Keiichi Watanabe, Nicolas
-Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng, and Zou Chang Wei.
+이 브랜치에서는 xv6 운영체제에 Priority Scheduler를 구현했습니다.
 
-The code in the files that constitute xv6 is
-Copyright 2006-2018 Frans Kaashoek, Robert Morris, and Russ Cox.
+## 구현 내용
 
-ERROR REPORTS
+### 스케줄러 수정
 
-We don't process error reports (see note on top of this file).
+`scheduler()` 함수를 수정하여 프로세스의 우선순위(nice 값)에 따라 스케줄링하도록 변경했습니다. 우선순위가 높은 프로세스를 먼저 실행하고, 우선순위가 같은 경우 PID가 낮은 프로세스를 먼저 실행합니다.
 
-BUILDING AND RUNNING XV6
+### 스케줄링 포인트 처리
 
-To build xv6 on an x86 ELF machine (like Linux or FreeBSD), run
-"make". On non-x86 or non-ELF machines (like OS X, even on x86), you
-will need to install a cross-compiler gcc suite capable of producing
-x86 ELF binaries (see https://pdos.csail.mit.edu/6.828/).
-Then run "make TOOLPREFIX=i386-jos-elf-". Now install the QEMU PC
-simulator and run "make qemu".
+다음과 같은 시점에서 스케줄링이 발생하도록 수정했습니다:
+- 프로세스 종료 시 (`exit()`)
+- 프로세스 블록 시 (`sleep()`, `read()` 등)
+- `yield()` 시스템 콜 호출 시
+- 프로세스의 우선순위 변경 시 (`nice()`)
+- 프로세스 wake up 시 (`wakeup()`)
+
+이를 통해 모든 스케줄링 결과가 Priority Scheduling 정책을 따르도록 했습니다.
