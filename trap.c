@@ -47,10 +47,9 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
         return 1;
     }
 
-  // 물리 페이지 할당
   char *mem = kalloc();
   if (mem == 0) {
-    return -1;  // 메모리 할당 실패
+    return -1; 
   }
   memset(mem, 0, PGSIZE);
 
@@ -58,50 +57,43 @@ int handle_mapped_file(struct proc *curproc, uint addr) {
   int bytes = fileread(vma->file, mem, PGSIZE);
   if (bytes < 0) {
     kfree(mem);
-    return -1;  // 파일 읽기 실패
+    return -1;
   }
   vma->file->off = vma->offset;
 
-  // 페이지 테이블에 매핑
   int perm = PTE_U;
   if (vma->prot & PTE_W) {
     perm |= PTE_W;
   }
 
-  // addr = PGROUNDDOWN(addr);
   if (mappages(curproc->pgdir, (void*)addr, PGSIZE, V2P(mem), perm) < 0) {
     kfree(mem);
-    return -1;  // 페이지 매핑 실패
+    return -1;
   }
   
-  return 0;  // 매핑된 파일 처리 성공
+  return 0;
 }
 
 int pagefault_handler(struct trapframe *tf) {
   uint addr = PGROUNDDOWN(rcr2());
-  // addr = PGROUNDDOWN(addr);
   struct proc *curproc = myproc();
 
-  // 페이지 폴트가 유효한 주소 범위 내에서 발생했는지 확인
   if (addr >= KERNBASE || addr < curproc->stack_guard) {
-    return -1;  // 잘못된 메모리 접근
+    return -1;
   }
 
-  // 쓰기 작업으로 인한 폴트인 경우
   if (tf->err & 0x2) {
     pte_t *pte = walkpgdir(curproc->pgdir, (void *)addr, 0);
     if (pte && (*pte & PTE_P) && !(*pte & PTE_W)) {
-      return -1;  // 읽기 전용 페이지에 쓰기 작업 시도
+      return -1; 
     }
   }
 
-  // 매핑된 파일 영역에서 페이지 폴트가 발생한 경우 처리
   int ret = handle_mapped_file(curproc, addr);
   if (ret <= 0) {
     return ret;
   }
 
-  // 스택 영역에서 페이지 폴트가 발생한 경우
   if (addr < curproc->stack_bottom) {
     cprintf("Page fault: handled stack\n"); 
     if ((addr = allocuvm(curproc->pgdir, addr, addr + PGSIZE)) == 0) {
@@ -111,7 +103,6 @@ int pagefault_handler(struct trapframe *tf) {
     return 0;
   }
 
-  //나머지는 모두 힙 영역
   cprintf("Page fault: handled heap\n");
   if ((addr = allocuvm(curproc->pgdir, addr, addr + PGSIZE)) == 0) {
     return -1;
@@ -142,14 +133,12 @@ trap(struct trapframe *tf)
 
     int res = pagefault_handler(tf);
     if (res == -1) {
-      // 잘못된 메모리 접근으로 인한 페이지 폴트인 경우 프로세스 종료
       cprintf("pid %d %s: trap %d err %d on cpu %d "
               "eip 0x%x addr 0x%x--kill proc\n",
               myproc()->pid, myproc()->name, tf->trapno, tf->err, cpuid(), tf->eip, rcr2());
       myproc()->killed = 1;
       exit();
     }
-    // Demand paging 처리 후 원래 실행 흐름으로 돌아감
     return;
   }
 

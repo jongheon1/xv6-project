@@ -202,7 +202,6 @@ uint find_free_addr_range(struct proc *p, int len) {
   return 0;
 }
 
-// 프로세스의 VMA 배열에서 빈 슬롯을 찾아 인덱스를 반환합니다.
 int find_free_vma_slot(struct proc *p) {
   for (int i = 0; i < 4; i++) {
     if (!p->vmas[i].valid) {
@@ -212,7 +211,6 @@ int find_free_vma_slot(struct proc *p) {
   return -1;
 }
 
-// 프로세스의 VMA 배열에 새로운 VMA를 추가합니다.
 int add_vma(struct proc *p, uint start, uint end, int prot, struct file *file, uint offset) {
   int slot = find_free_vma_slot(p);
   if (slot < 0) {
@@ -230,7 +228,6 @@ int add_vma(struct proc *p, uint start, uint end, int prot, struct file *file, u
 void remove_vma(struct proc* p, uint start, uint end) {
   for (int i = 0; i < 4; i++) {
     if (p->vmas[i].valid && p->vmas[i].start == start && p->vmas[i].end == end) {
-      // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
       p->vmas[i].valid = 0;
       
       break;
@@ -253,26 +250,21 @@ int mmap(struct file* f, int off, int len, int flags)
 {
 	  struct proc *p = myproc();
 
-  // 파일과 오프셋, 길이 값을 검증합니다.
   if (f == 0 || !f->readable || off < 0 || len <= 0 || off % PGSIZE != 0) {
     return -1;
   }
 
-  // VMA의 시작 주소를 찾습니다.
   uint start = find_free_addr_range(p, len);
   if (start == 0) {
     return -1;
   }
 
-  // VMA를 생성하고 프로세스의 VMA 배열에 추가합니다.
   if (add_vma(p, start, start + len, flags, f, off) < 0) {
     return -1;
   }
   // for (uint a = start; a < start + len; a += PGSIZE) {
-  //   //매핑된 파일을 올리기 위한 물리 메모리 할당
   //   char *mem = kalloc();
   //   if (mem == 0) {
-  //     // 메모리 할당 실패 시 이전에 할당한 페이지 해제와 VMA 제거
   //     unmap_pages(p->pgdir, start, a);
   //     remove_vma(p, start, start + len);
   //     unmap_file(f);
@@ -285,9 +277,7 @@ int mmap(struct file* f, int off, int len, int flags)
   //   if (flags & MAP_PROT_WRITE) {
   //     pte_flags |= PTE_W;
   //   }
-  //   //가상 주소가 할당 받은 물리 메모리를 참조할 수 있도록 페이지 테이블 생성
   //   if (mappages(p->pgdir, (void*)a, PGSIZE, V2P(mem), pte_flags) < 0) {
-  //     // 페이지 매핑 실패 시 할당한 페이지와 VMA 제거
   //     kfree(mem);
   //     unmap_pages(p->pgdir, start, a);
   //     remove_vma(p, start, start + len);
@@ -295,7 +285,6 @@ int mmap(struct file* f, int off, int len, int flags)
   //     global_nvmas--;
   //     return -1;
   //   }
-  //   //이제 물리 메모리(mem)에 파일 올려놓으면 가상 메모리에 접근 가능
   //   fileread(f, mem, PGSIZE);
   //   //offset reset
   //    f->off = off;
@@ -307,7 +296,6 @@ int mmap(struct file* f, int off, int len, int flags)
 int munmap(void* addr, int len) {
     struct proc *p = myproc();
 
-    // 주소 값을 검증합니다.
     if (addr == 0 || (uint)addr % PGSIZE != 0) {
         return -1;
     }
@@ -318,15 +306,11 @@ int munmap(void* addr, int len) {
       (p->vmas[i].start < (uint)addr + len && (uint)addr + len <= p->vmas[i].end)
       )) {
         if (p->vmas[i].start == (uint)addr && p->vmas[i].end == (uint)addr + len) {
-            // 파일 백킹 VMA인 경우 dirty page를 파일에 씁니다.
             if (p->vmas[i].file != 0 && (p->vmas[i].prot & MAP_PROT_WRITE)) {              
               filewrite(p->vmas[i].file, (char*)p->vmas[i].start, p->vmas[i].end - p->vmas[i].start);
             }
-            // VMA를 무효화하고 프로세스의 VMA 배열에서 제거합니다.
             p->vmas[i].valid = 0;
-            // 해당 주소 범위의 페이지를 해제합니다.
             unmap_pages(p->pgdir, (uint)addr, (uint)addr + len);
-            //TLB flush
             switchuvm(p);
             return 0;
         } else {
