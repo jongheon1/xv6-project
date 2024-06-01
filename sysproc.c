@@ -103,7 +103,3 @@ int sys_nice(void)
 		return -1;
 	return nice(value);
 }
-
-int sys_ps(void){
-  return ps();
-}

@@ -462,20 +462,6 @@ sleep(void *chan, struct spinlock *lk)
   }
 }
 
-int ps(void)
-{
- struct proc *p;
- extern uint ticks;
- cprintf("name \t pid \t state \t nice \t ticks \t ticks: %d \n", ticks);
- acquire(&ptable.lock);
- for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
- if(p->state == UNUSED) continue;
- cprintf("%s \t %d \t %d \t %d\n", p->name, p->pid, p->state, p->nice);
-  }
-  release(&ptable.lock);
-  return 0;
-}
-
 
 //PAGEBREAK!
 // Wake up all processes sleeping on chan.
