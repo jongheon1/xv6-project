@@ -107,11 +107,50 @@ memmove(void *vdst, const void *vsrc, int n)
 
 int thread_create(void (*func)(void*), void* arg)
 {
-	return -1;
+  printf(1, "thread start! func: %p \n", func);
+    void *stack;
+    int tid;
+
+    // Allocate stack
+    stack = malloc(4096);
+    if (stack == 0) {
+        return -1;
+    }
+    printf(1, "stack allocated! stack: %p \n", stack);
+    // Align stack to page boundary
+    // stack = (void *)PGROUNDUP((uint)stack);
+
+    // Create new thread
+    tid = clone(stack);
+    printf(1, "cloned! tid: %d \n", tid);
+    if (tid < 0) {
+        free(stack);
+        return -1;
+    }
+
+    // Start new thread
+    if (tid == 0) {
+        printf(1, "new thread! tid: %d \n", tid);
+        func(arg);
+        free(stack);
+        exit();
+    }
+
+    return tid;
+
+
 }
 
 int thread_join(int tid)
 {
-	return -1;
+    int join_tid;
+    join_tid = join();
+    
+    if (join_tid == tid) {
+        return 0;
+    }
+    
+    return -1; 
+
 }
 

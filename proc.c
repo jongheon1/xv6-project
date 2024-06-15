@@ -15,6 +15,7 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int nexttid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
@@ -88,6 +89,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->tid = nexttid++;
+  p->is_thread_parent = 1;
 
   release(&ptable.lock);
 
@@ -185,6 +188,7 @@ fork(void)
   struct proc *np;
   struct proc *curproc = myproc();
 
+  if (!curproc->is_thread_parent) return -1;
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
@@ -200,6 +204,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->thread_stack_base = curproc->thread_stack_base;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -290,7 +295,7 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        if(p->is_thread_parent) freevm(p->pgdir); // 자식보다 부모 스레드가 먼저 죽으면, 자식 스레드는 join 에서 처리되는게 아니라 여기서 처리됨..
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
@@ -536,10 +541,115 @@ procdump(void)
 
 int clone(char* stack)
 {
-	return -1;
+  int i, tid;
+    struct proc *np;
+    struct proc *curproc = myproc();
+
+    cprintf("clone: starting clone for process %d\n", curproc->pid);
+
+    // Allocate process.
+    if ((np = allocproc()) == 0) {
+        cprintf("clone: allocproc failed\n");
+        return -1;
+    }
+    cprintf("clone: allocproc succeeded, new process %d\n", np->pid);
+
+    // Share the address space with the parent.
+    np->sz = curproc->sz;
+    np->parent = curproc;
+    np->pid = curproc->pid;
+    np->pgdir = curproc->pgdir;
+    np->thread_stack_base = stack;
+    np->is_thread_parent = 0;
+
+    cprintf("clone: setting up stack\n");
+
+    // Copy the caller's stack to the new thread's stack
+    memcpy((void *)stack, (void *)curproc->thread_stack_base, PGSIZE);
+
+    // Set up the thread stack.
+    char *stack_top = (char *)stack + PGSIZE;
+    uint *sp = (uint *)stack_top;
+
+    // Set up the kernel stack for the new thread.
+    *(--sp) = (uint)trapret;  // Return address for the new thread.
+    *(--sp) = 0;              // Argument to the thread's function (not used).
+
+    cprintf("clone: kernel stack set up\n");
+
+    // Set up the kernel context for the new thread.
+    np->tf->eip = (uint)stack_top;  // Thread's entry point.
+    np->tf->esp = (uint)sp;         // Thread's stack pointer.
+    np->tf->ebp = np->tf->eip;
+
+    cprintf("clone: kernel context set up\n");
+
+    // Clear %eax so that clone returns 0 in the child.
+    np->tf->eax = 0;
+
+    // Inherit opened files from the parent.
+    for (i = 0; i < NOFILE; i++) 
+        if (curproc->ofile[i]) 
+            np->ofile[i] = filedup(curproc->ofile[i]);
+    np->cwd = idup(curproc->cwd);
+
+    safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+
+    tid = np->tid;
+
+    acquire(&ptable.lock);
+
+    np->state = RUNNABLE;
+
+    release(&ptable.lock);
+
+    cprintf("clone: new thread %d created and set to RUNNABLE\n", tid);
+
+    return tid;
+
 }
 
 int join(void)
 {
-	return -1;
+  struct proc *p;
+  int havekids, tid;
+  struct proc *curproc = myproc();
+
+
+  acquire(&ptable.lock);
+  for (;;)
+  {
+    // Scan through table looking for zombie thread children.
+    havekids = 0;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->parent != curproc)
+        continue;
+      havekids = 1;
+      if (p->state == ZOMBIE && !p->is_thread_parent)
+      {
+        // Found one.
+        tid = p->tid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        p->tid = -1;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return tid;
+      }
+    }
+
+    // No point waiting if we don't have any thread children.
+    if (!havekids || !curproc->is_thread_parent){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for thread children to exit.
+    sleep(curproc, &ptable.lock);
+  }
 }
