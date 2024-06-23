@@ -204,7 +204,6 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
-  np->thread_stack_base = curproc->thread_stack_base;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -545,49 +544,26 @@ int clone(char* stack)
     struct proc *np;
     struct proc *curproc = myproc();
 
-    cprintf("clone: starting clone for process %d\n", curproc->pid);
-
-    // Allocate process.
     if ((np = allocproc()) == 0) {
-        cprintf("clone: allocproc failed\n");
         return -1;
     }
-    cprintf("clone: allocproc succeeded, new process %d\n", np->pid);
 
-    // Share the address space with the parent.
+    np->pgdir = curproc->pgdir;
     np->sz = curproc->sz;
     np->parent = curproc;
+    *np->tf = *curproc->tf;
     np->pid = curproc->pid;
-    np->pgdir = curproc->pgdir;
-    np->thread_stack_base = stack;
     np->is_thread_parent = 0;
 
-    cprintf("clone: setting up stack\n");
-
-    // Copy the caller's stack to the new thread's stack
-    memcpy((void *)stack, (void *)curproc->thread_stack_base, PGSIZE);
-
-    // Set up the thread stack.
-    char *stack_top = (char *)stack + PGSIZE;
-    uint *sp = (uint *)stack_top;
-
-    // Set up the kernel stack for the new thread.
-    *(--sp) = (uint)trapret;  // Return address for the new thread.
-    *(--sp) = 0;              // Argument to the thread's function (not used).
-
-    cprintf("clone: kernel stack set up\n");
-
-    // Set up the kernel context for the new thread.
-    np->tf->eip = (uint)stack_top;  // Thread's entry point.
-    np->tf->esp = (uint)sp;         // Thread's stack pointer.
-    np->tf->ebp = np->tf->eip;
-
-    cprintf("clone: kernel context set up\n");
-
-    // Clear %eax so that clone returns 0 in the child.
+    uint stacksize = PGROUNDUP(curproc->tf->esp) - (uint)curproc->tf->esp;
+    np->tf->esp = (uint)stack + PGSIZE - stacksize;
+    np->tf->ebp = np->tf->esp + (curproc->tf->ebp - curproc->tf->esp);
+    if(copyout(np->pgdir,np->tf->esp,(void*)curproc->tf->esp,stacksize)<0){
+      cprintf("stack copy fail\n");
+      return -1;
+    } 
     np->tf->eax = 0;
 
-    // Inherit opened files from the parent.
     for (i = 0; i < NOFILE; i++) 
         if (curproc->ofile[i]) 
             np->ofile[i] = filedup(curproc->ofile[i]);
@@ -603,7 +579,6 @@ int clone(char* stack)
 
     release(&ptable.lock);
 
-    cprintf("clone: new thread %d created and set to RUNNABLE\n", tid);
 
     return tid;
 
@@ -617,17 +592,14 @@ int join(void)
 
 
   acquire(&ptable.lock);
-  for (;;)
-  {
+  for (;;) {
     // Scan through table looking for zombie thread children.
     havekids = 0;
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p->parent != curproc)
         continue;
       havekids = 1;
-      if (p->state == ZOMBIE && !p->is_thread_parent)
-      {
+      if (p->state == ZOMBIE && !p->is_thread_parent){
         // Found one.
         tid = p->tid;
         kfree(p->kstack);

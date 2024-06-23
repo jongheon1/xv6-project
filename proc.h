@@ -52,9 +52,6 @@ struct proc {
 
   int tid;                 // Thread ID
   int is_thread_parent;
-  void *thread_stack;      // Thread stack
-  void *thread_stack_base; // Thread stack base
-
 };
 
 // Process memory is laid out contiguously, low addresses first:
