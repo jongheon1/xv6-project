@@ -8,19 +8,19 @@
 
 ## 프로젝트 개요
 
-**Priority Scheduler**
+### Priority Scheduler
 이 프로젝트에서는 프로세스의 우선순위(nice 값)에 따라 CPU 자원을 할당하는 Priority Scheduler를 구현했습니다. 우선순위가 높은 프로세스에 더 많은 CPU 시간을 할당함으로써, 시스템의 응답성을 개선할 수 있습니다.
 자세한 내용은 prio_sched 브랜치의 README 파일을 참조하세요.
 
-**MLFQ Scheduler**
+### MLFQ Scheduler
 이 프로젝트에서는 3개의 우선순위 큐(high, medium, low)를 사용하는 MLFQ(Multilevel Feedback Queue) Scheduler를 구현했습니다. 프로세스의 CPU 사용 패턴에 따라 우선순위를 동적으로 조정함으로써, 시스템 전체의 성능과 공정성을 향상시킬 수 있습니다.
 자세한 내용은 mlfq_sched 브랜치의 README 파일을 참조하세요.
 
-**Virtual Memory**
+### Virtual Memory
 이 프로젝트에서는 가상 메모리 관련 기능을 구현했습니다. mmap()과 munmap() 시스템 콜을 통해 파일이나 디바이스를 프로세스의 가상 주소 공간에 매핑할 수 있도록 했습니다. 또한 Demand Paging 기법을 도입하여 필요한 페이지만 메모리에 적재하도록 했으며, 스택과 힙 영역에 대한 Lazy Allocation을 적용했습니다.
 자세한 내용은 vm 브랜치의 README 파일을 참조하세요.
 
-**Threads**
+### Threads
 이 프로젝트에서는 멀티스레드 관련 기능을 구현했습니다. clone() 시스템 콜을 통해 새로운 스레드를 생성하고, 부모 프로세스와 주소 공간을 공유할 수 있도록 했습니다. 또한 join() 시스템 콜을 구현하여 자식 스레드가 종료될 때까지 기다리고, 자원을 정리할 수 있도록 했습니다. 사용자 레벨에서는 thread_create()와 thread_join() API를 제공하여 스레드를 쉽게 생성하고 관리할 수 있도록 했습니다. 아울러 mutex_lock()과 mutex_unlock() 시스템 콜을 구현하여 스레드 간의 동기화를 위한 상호 배제를 지원했습니다.
 자세한 내용은 thread 브랜치의 README 파일을 참조하세요.
 
