@@ -605,7 +605,6 @@ int join(void)
 
   acquire(&ptable.lock);
   for (;;) {
-    // Scan through table looking for zombie thread children.
     havekids = 0;
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p->parent != curproc)
@@ -627,13 +626,11 @@ int join(void)
       }
     }
 
-    // No point waiting if we don't have any thread children.
     if (!havekids || !curproc->is_thread_parent){
       release(&ptable.lock);
       return -1;
     }
 
-    // Wait for thread children to exit.
     sleep(curproc, &ptable.lock);
   }
 }
