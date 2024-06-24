@@ -1,4 +1,4 @@
-# xv6-virtual-memory
+# xv6-projects
 
 본 프로젝트는 [MIT xv6](https://pdos.csail.mit.edu/6.828/2022/xv6.html) 운영체제를 기반으로 한 프로젝트의 결과물입니다. xv6는 Unix v6를 x86 아키텍처에 맞게 재구현한 교육용 운영체제입니다.
 
