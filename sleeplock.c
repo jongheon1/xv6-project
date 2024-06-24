@@ -54,10 +54,16 @@ holdingsleep(struct sleeplock *lk)
 
 int mutex_lock(volatile int* l)
 {
+  while(xchg((volatile uint*)l, 1) == 1)
+    mutex_sleep((void*)l);
   return 0;
 }
 
 int mutex_unlock(volatile int* l)
 {
+  *l = 0;
+  mutex_wakeup((void*)l);
   return 0;
 }
+
+

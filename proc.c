@@ -164,6 +164,7 @@ growproc(int n)
 {
   uint sz;
   struct proc *curproc = myproc();
+  struct proc *p;
 
   sz = curproc->sz;
   if(n > 0){
@@ -174,6 +175,17 @@ growproc(int n)
       return -1;
   }
   curproc->sz = sz;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->pgdir != curproc->pgdir)
+        continue;
+
+      p->sz = sz;
+      switchuvm(p); 
+  }
+  release(&ptable.lock);
+
   switchuvm(curproc);
   return 0;
 }
@@ -624,4 +636,33 @@ int join(void)
     // Wait for thread children to exit.
     sleep(curproc, &ptable.lock);
   }
+}
+
+void mutex_sleep(void *chan) {
+  struct proc *p = myproc();
+
+  acquire(&ptable.lock);
+
+  p->chan = chan;
+  p->state = SLEEPING;
+
+  sched();
+
+  p->chan = 0;  
+
+  release(&ptable.lock);
+}
+
+void mutex_wakeup(void *chan) {
+  acquire(&ptable.lock);
+  struct proc *p;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->state == SLEEPING && p->chan == chan) {
+      p->state = RUNNABLE;
+      break;
+    }
+  }
+    
+  release(&ptable.lock);
 }

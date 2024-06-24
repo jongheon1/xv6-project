@@ -110,22 +110,18 @@ int thread_create(void (*func)(void*), void* arg)
     void *stack;
     int tid;
 
-    // Allocate stack
     stack = malloc(4096);
     if (stack == 0) {
         return -1;
     }
-    // Align stack to page boundary
     // stack = (void *)PGROUNDUP((uint)stack);
 
-    // Create new thread
     tid = clone(stack);
     if (tid < 0) {
         free(stack);
         return -1;
     }
 
-    // Start new thread
     if (tid == 0) {
         func(arg);
         free(stack);
